@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "guard-12345"
+  },
+  "targets": {},
+  "etags": {}
+}

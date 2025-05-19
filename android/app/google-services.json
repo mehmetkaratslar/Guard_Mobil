@@ -1,0 +1,98 @@
+{
+  "project_info": {
+    "project_number": "584140094374",
+    "project_id": "guard-12345",
+    "storage_bucket": "guard-12345.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:584140094374:android:5f5488ac661f0c1b73ad67",
+        "android_client_info": {
+          "package_name": "guard.com.guard"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "584140094374-pmrp592ctaq823q4tfe8mrnn3dqjlf4h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "guard.com.guard",
+            "certificate_hash": "6d93391d7d72dea21a2ddbef5aeda32ecc2b5dd4"
+          }
+        },
+        {
+          "client_id": "584140094374-cr72nn4vkcge7mv102brslmdlmd4hb5d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAweb8bgxejbineER-Znv0WQjV07yYdGwE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "584140094374-cr72nn4vkcge7mv102brslmdlmd4hb5d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "584140094374-2uqqu3pn9u7vlctdkn68o0i7ngen4hta.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "www.guard.com.guard"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:584140094374:android:1aa26945372fa3aa73ad67",
+        "android_client_info": {
+          "package_name": "www.guard.com.guard"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "584140094374-s61s45mfusafq6q0m6qb3j39t7t87csc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "www.guard.com.guard",
+            "certificate_hash": "6d93391d7d72dea21a2ddbef5aeda32ecc2b5dd4"
+          }
+        },
+        {
+          "client_id": "584140094374-cr72nn4vkcge7mv102brslmdlmd4hb5d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAweb8bgxejbineER-Znv0WQjV07yYdGwE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "584140094374-cr72nn4vkcge7mv102brslmdlmd4hb5d.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "584140094374-2uqqu3pn9u7vlctdkn68o0i7ngen4hta.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "www.guard.com.guard"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
