@@ -32,7 +32,7 @@ class GoogleAuthService {
             .addScope('https://www.googleapis.com/auth/userinfo.profile');
 
         UserCredential userCredential =
-            await _auth.signInWithPopup(googleProvider);
+        await _auth.signInWithPopup(googleProvider);
         final user = userCredential.user;
 
         if (user != null) {
@@ -49,7 +49,7 @@ class GoogleAuthService {
         }
 
         final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
+        await googleUser.authentication;
         if (googleAuth.accessToken == null || googleAuth.idToken == null) {
           throw Exception('⛔ Giriş başarısız: Token alınamadı');
         }
@@ -78,7 +78,7 @@ class GoogleAuthService {
       if (e.toString().contains('ApiException: 10')) {
         throw Exception(
           'Google Giriş başarısız (ApiException: 10). Bu, büyük ihtimalle Firebase yapılandırma hatasıdır. '
-          'SHA-1 fingerprint ve OAuth client ID ayarlarını kontrol etmelisin.',
+              'SHA-1 fingerprint ve OAuth client ID ayarlarını kontrol etmelisin.',
         );
       }
       rethrow;
@@ -100,7 +100,7 @@ class GoogleAuthService {
   /// 📦 Firestore'a kullanıcı bilgisini kaydeder
   Future<void> _saveUserToFirestore(User user) async {
     final userRef =
-        FirebaseFirestore.instance.collection('users').doc(user.uid);
+    FirebaseFirestore.instance.collection('users').doc(user.uid);
 
     final userDoc = await userRef.get();
     if (!userDoc.exists) {

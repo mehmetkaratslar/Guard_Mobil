@@ -1,0 +1,69 @@
+name: guard
+description: Gerçek zamanlı düşme/bayılma algılama ve bildirim sistemi mobil uygulaması.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase ve Google Authentication
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.3
+  google_sign_in: ^6.2.1
+  cloud_firestore: ^5.6.7
+  firebase_storage: ^12.4.5
+  firebase_messaging: ^15.2.5
+  flutter_local_notifications: ^18.0.1
+
+  # MJPEG & Alternatif video player
+  flutter_mjpeg: ^2.0.4        # http ^0.13.x ile uyumlu olmalı
+  video_player: ^2.7.2
+  webview_flutter: ^4.2.2
+
+  # Sesli uyarı
+  just_audio: ^0.10.3
+
+  # Utils ve temel paketler
+  http: ^0.13.6                # flutter_mjpeg ile uyumlu
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
+  connectivity_plus: ^6.1.4
+  intl: ^0.18.1
+  cupertino_icons: ^1.0.8
+  flutter_cache_manager: ^3.3.1
+  js: ^0.7.2
+  url_launcher: ^6.2.6
+  package_info_plus: ^4.2.0
+  image_picker: ^1.0.7
+
+  # UI & Fonts
+  google_fonts: ^4.0.4        # http ^0.13.x ile uyumlu (güncel üst sürüm KULLANMA)
+  cached_network_image: ^3.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/logo.png
+    - assets/google.png
+    - assets/notification.mp3
+    - assets/fall_alarm.mp3
+
+
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600

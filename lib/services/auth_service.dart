@@ -124,7 +124,7 @@ class AuthService {
   // 📦 Firestore’a kullanıcı kaydet
   Future<void> _saveUserToFirestore(User user) async {
     final userRef =
-        FirebaseFirestore.instance.collection('users').doc(user.uid);
+    FirebaseFirestore.instance.collection('users').doc(user.uid);
     final userDoc = await userRef.get();
 
     if (!userDoc.exists) {
