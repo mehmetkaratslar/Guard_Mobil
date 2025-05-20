@@ -1,13 +1,16 @@
 // 📄 Dosya: profile_settings_screen.dart
 // 📁 Konum: lib/screens/settings/
-// 📌 Açıklama: Kullanıcı profil bilgilerini güncelleme ekranı
+// 📌 Açıklama: Kullanıcı profil bilgilerini güncelleme ekranı - düzeltilmiş versiyon
+// 🔗 Bağlantılı: settings_screen.dart, auth_service.dart, storage_service.dart
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
+
+import '../../services/storage_service.dart';
+
 
 class ProfileSettingsScreen extends StatefulWidget {
   const ProfileSettingsScreen({Key? key}) : super(key: key);
@@ -20,6 +23,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final StorageService _storageService = StorageService();
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
@@ -34,9 +38,11 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   final List<String> _genders = ['Erkek', 'Kadın', 'Diğer', 'Belirtmek İstemiyorum'];
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _isImageUploading = false;
   File? _profileImage;
   String? _profileImageUrl;
   bool _hasMedicalInfo = false;
+  String? _uploadError;
 
   @override
   void initState() {
@@ -60,6 +66,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   Future<void> _loadUserData() async {
     setState(() {
       _isLoading = true;
+      _uploadError = null;
     });
 
     try {
@@ -104,6 +111,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
 
     setState(() {
       _isSaving = true;
+      _uploadError = null;
     });
 
     try {
@@ -112,7 +120,23 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
         // Profil resmini yükle (varsa)
         String? photoURL = _profileImageUrl;
         if (_profileImage != null) {
-          photoURL = await _uploadProfileImage(_profileImage!, user.uid);
+          try {
+            setState(() {
+              _isImageUploading = true;
+            });
+
+            photoURL = await _storageService.uploadProfileImage(_profileImage!);
+
+            setState(() {
+              _isImageUploading = false;
+            });
+          } catch (e) {
+            setState(() {
+              _isImageUploading = false;
+              _uploadError = 'Profil resmi yüklenemedi: $e';
+            });
+            _showSnackBar('Profil resmi yüklenemedi: $e');
+          }
         }
 
         // Firebase Auth profilini güncelle
@@ -156,26 +180,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     }
   }
 
-  Future<String?> _uploadProfileImage(File imageFile, String userId) async {
-    try {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profile_images')
-          .child('$userId.jpg');
-
-      await ref.putFile(imageFile);
-      final url = await ref.getDownloadURL();
-      return url;
-    } catch (e) {
-      _showSnackBar('Profil resmi yüklenirken hata oluştu: $e');
-      return null;
-    }
-  }
-
   Future<void> _pickImage() async {
     try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 400,
         maxHeight: 400,
@@ -185,6 +193,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
       if (pickedFile != null) {
         setState(() {
           _profileImage = File(pickedFile.path);
+          _uploadError = null;
         });
       }
     } catch (e) {
@@ -193,6 +202,8 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
   }
 
   void _showSnackBar(String message) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -246,6 +257,10 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                           : null),
                       child: (_profileImageUrl == null && _profileImage == null)
                           ? const Icon(Icons.person, size: 64, color: Colors.grey)
+                          : _isImageUploading
+                          ? const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      )
                           : null,
                     ),
                     Positioned(
@@ -258,7 +273,7 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                         ),
                         child: IconButton(
                           icon: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                          onPressed: _pickImage,
+                          onPressed: _isImageUploading ? null : _pickImage,
                           constraints: const BoxConstraints(
                             minWidth: 36,
                             minHeight: 36,
@@ -270,6 +285,20 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
                   ],
                 ),
               ),
+
+              // Resim yükleme hatası
+              if (_uploadError != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: Text(
+                      _uploadError!,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+
               const SizedBox(height: 24),
 
               // Temel bilgiler başlığı

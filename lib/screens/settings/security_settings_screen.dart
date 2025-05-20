@@ -1,6 +1,7 @@
 // 📄 Dosya: security_settings_screen.dart
 // 📁 Konum: lib/screens/settings/
 // 📌 Açıklama: Güvenlik ayarları ekranı - şifre değiştirme ve güvenlik seçenekleri
+// 🔗 Bağlantılı: settings_screen.dart, firebase_auth, package:flutter/services.dart
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
