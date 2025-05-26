@@ -1,18 +1,29 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="guard.com.guard">
 
+
+
     <!-- 🌐 Uygulama için internet izni -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- 🔔 Bildirim izni (Android 13 ve sonrası için) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- 🌐 Ağ durumu kontrolü için -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- 📸 Depolama izni (ekran görüntüsü kaydetme için, Android 9 ve öncesi) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"/>
+    <!-- 📸 Medya izni (Android 13 ve sonrası için ekran görüntüsü kaydetme) -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+
 
     <application
         android:label="guard"
         android:name="${applicationName}"
         android:icon="@mipmap/logo"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:requestLegacyExternalStorage="true">
 
         <activity
             android:name=".MainActivity"
