@@ -5,6 +5,9 @@
   <!-- Meta etiketler -->
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Google Sign-In Web Client ID (Google login için şart!) -->
+  <meta name="google-signin-client_id" content="584140094374-cr72nn4vkcge7mv102brslmdlmd4hb5d.apps.googleusercontent.com" />
+
   <title>Guard</title>
   <!-- Firebase SDK'sını yükle -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
@@ -15,12 +18,13 @@
 <!-- Firebase yapılandırması -->
 <script>
   const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_AUTH_DOMAIN",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: 'AIzaSyBZj7uR381bcLdwfcBI_BozGVHhIAEa7xs',
+    appId: '1:584140094374:web:3882066aa62b8d9e73ad67',
+    messagingSenderId: '584140094374',
+    projectId: 'guard-12345',
+    authDomain: 'guard-12345.firebaseapp.com',
+    storageBucket: 'guard-12345.firebasestorage.app',
+    measurementId: 'G-MLGTVXJ40N',
   };
   // Firebase'i başlat
   firebase.initializeApp(firebaseConfig);

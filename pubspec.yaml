@@ -18,6 +18,8 @@ dependencies:
   firebase_storage: ^12.4.5
   firebase_messaging: ^15.2.5
   flutter_local_notifications: ^18.0.1
+  firebase_app_check: ^0.3.0
+  local_auth: ^2.3.0
 
   # MJPEG & Alternatif video player
   flutter_mjpeg: ^2.0.4        # http ^0.13.x ile uyumlu olmalı

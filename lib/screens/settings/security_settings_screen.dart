@@ -1,10 +1,12 @@
 // 📄 Dosya: security_settings_screen.dart
 // 📁 Konum: lib/screens/settings/
 // 📌 Açıklama: Güvenlik ayarları ekranı - şifre değiştirme ve güvenlik seçenekleri
-// 🔗 Bağlantılı: settings_screen.dart, firebase_auth, package:flutter/services.dart
+// 🔗 Bağlantılı: settings_screen.dart, firebase_auth, package:flutter/services.dart, local_auth
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:flutter/services.dart';
 
 class SecuritySettingsScreen extends StatefulWidget {
@@ -16,6 +18,8 @@ class SecuritySettingsScreen extends StatefulWidget {
 
 class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final LocalAuthentication _localAuth = LocalAuthentication();
 
   final _formKey = GlobalKey<FormState>();
   final _currentPasswordController = TextEditingController();
@@ -38,11 +42,117 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
   int _autoLogoutTime = 30; // dakika
 
   @override
+  void initState() {
+    super.initState();
+    _loadSecuritySettings();
+  }
+
+  @override
   void dispose() {
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSecuritySettings() async {
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final settings = userDoc.data()?['securitySettings'] ?? {};
+        setState(() {
+          _biometricAuthEnabled = settings['biometricAuthEnabled'] ?? false;
+          _twoFactorAuthEnabled = settings['twoFactorAuthEnabled'] ?? false;
+          _autoLogoutEnabled = settings['autoLogoutEnabled'] ?? true;
+          _autoLogoutTime = settings['autoLogoutTime'] ?? 30;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ayarlar yüklenemedi: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<bool> _checkBiometricSupport() async {
+    try {
+      bool canCheckBiometrics = await _localAuth.canCheckBiometrics;
+      bool isDeviceSupported = await _localAuth.isDeviceSupported();
+      return canCheckBiometrics && isDeviceSupported;
+    } catch (e) {
+      print('Biyometrik destek kontrolü hatası: $e');
+      return false;
+    }
+  }
+
+  Future<void> _toggleBiometricAuth(bool value) async {
+    if (value) {
+      bool isSupported = await _checkBiometricSupport();
+      if (!isSupported) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bu cihaz biyometrik doğrulamayı desteklemiyor.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      bool authenticated = await _localAuth.authenticate(
+        localizedReason: 'Uygulamaya giriş için biyometrik doğrulama gerekli.',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+
+      if (!authenticated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Biyometrik doğrulama başarısız.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _firestore.collection('users').doc(user.uid).set({
+          'securitySettings': {
+            'biometricAuthEnabled': value,
+            'twoFactorAuthEnabled': _twoFactorAuthEnabled,
+            'autoLogoutEnabled': _autoLogoutEnabled,
+            'autoLogoutTime': _autoLogoutTime,
+          },
+        }, SetOptions(merge: true));
+        setState(() {
+          _biometricAuthEnabled = value;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Biyometrik kimlik doğrulama ${value ? 'aktif edildi' : 'devre dışı bırakıldı'}.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ayar kaydedilemedi: $e')),
+      );
+    }
   }
 
   Future<void> _changePassword() async {
@@ -59,16 +169,12 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
     try {
       final user = _auth.currentUser;
       if (user != null && user.email != null) {
-        // E-posta ve şifre yeniden kimlik doğrulama
         final credentials = EmailAuthProvider.credential(
           email: user.email!,
           password: _currentPasswordController.text,
         );
 
-        // Kullanıcıyı yeniden doğrula
         await user.reauthenticateWithCredential(credentials);
-
-        // Şifreyi güncelle
         await user.updatePassword(_newPasswordController.text);
 
         setState(() {
@@ -87,7 +193,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
       }
     } on FirebaseAuthException catch (e) {
       String message;
-
       switch (e.code) {
         case 'wrong-password':
           message = 'Mevcut şifreniz yanlış.';
@@ -101,7 +206,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
         default:
           message = 'Bir hata oluştu: ${e.message}';
       }
-
       setState(() {
         _errorMessage = message;
       });
@@ -138,33 +242,24 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
     }
   }
 
-  // Şifre gücünü ölç
   double _calculatePasswordStrength(String password) {
     if (password.isEmpty) return 0;
-
     double strength = 0;
-
-    // Minimum uzunluk kontrolü
     if (password.length >= 8) strength += 0.2;
     if (password.length >= 12) strength += 0.2;
-
-    // Karakter çeşitliliği kontrolü
-    if (password.contains(RegExp(r'[A-Z]'))) strength += 0.2; // Büyük harf
-    if (password.contains(RegExp(r'[a-z]'))) strength += 0.1; // Küçük harf
-    if (password.contains(RegExp(r'[0-9]'))) strength += 0.1; // Rakam
-    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) strength += 0.2; // Özel karakter
-
+    if (password.contains(RegExp(r'[A-Z]'))) strength += 0.2;
+    if (password.contains(RegExp(r'[a-z]'))) strength += 0.1;
+    if (password.contains(RegExp(r'[0-9]'))) strength += 0.1;
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) strength += 0.2;
     return strength > 1.0 ? 1.0 : strength;
   }
 
-  // Şifre gücü rengi
   Color _getPasswordStrengthColor(double strength) {
     if (strength <= 0.3) return Colors.red;
     if (strength <= 0.6) return Colors.orange;
     return Colors.green;
   }
 
-  // Şifre gücü metni
   String _getPasswordStrengthText(double strength) {
     if (strength <= 0.3) return 'Zayıf';
     if (strength <= 0.6) return 'Orta';
@@ -173,7 +268,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Şifre gücünü hesapla
     final passwordStrength = _calculatePasswordStrength(_newPasswordController.text);
     final strengthColor = _getPasswordStrengthColor(passwordStrength);
     final strengthText = _getPasswordStrengthText(passwordStrength);
@@ -182,12 +276,13 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
       appBar: AppBar(
         title: const Text('Güvenlik Ayarları'),
       ),
-      body: SingleChildScrollView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Şifre değiştirme bölümü
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -208,8 +303,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Mevcut şifre
                       TextFormField(
                         controller: _currentPasswordController,
                         obscureText: !_currentPasswordVisible,
@@ -219,7 +312,9 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _currentPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                              _currentPasswordVisible
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                             ),
                             onPressed: () {
                               setState(() {
@@ -236,8 +331,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         },
                       ),
                       const SizedBox(height: 16),
-
-                      // Yeni şifre
                       TextFormField(
                         controller: _newPasswordController,
                         obscureText: !_newPasswordVisible,
@@ -247,7 +340,9 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           prefixIcon: const Icon(Icons.lock),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _newPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                              _newPasswordVisible
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                             ),
                             onPressed: () {
                               setState(() {
@@ -266,12 +361,9 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           return null;
                         },
                         onChanged: (value) {
-                          // Değişikliği tetiklemek için setState kullan
                           setState(() {});
                         },
                       ),
-
-                      // Şifre gücü göstergesi
                       if (_newPasswordController.text.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Row(
@@ -280,7 +372,8 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                               child: LinearProgressIndicator(
                                 value: passwordStrength,
                                 backgroundColor: Colors.grey[300],
-                                valueColor: AlwaysStoppedAnimation<Color>(strengthColor),
+                                valueColor:
+                                AlwaysStoppedAnimation<Color>(strengthColor),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -302,10 +395,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           ),
                         ),
                       ],
-
                       const SizedBox(height: 16),
-
-                      // Şifre onay
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: !_confirmPasswordVisible,
@@ -315,7 +405,9 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           prefixIcon: const Icon(Icons.lock),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _confirmPasswordVisible ? Icons.visibility_off : Icons.visibility,
+                              _confirmPasswordVisible
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                             ),
                             onPressed: () {
                               setState(() {
@@ -334,7 +426,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                           return null;
                         },
                       ),
-
                       if (_errorMessage.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 16),
@@ -346,7 +437,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             ),
                           ),
                         ),
-
                       if (_isSuccessful)
                         const Padding(
                           padding: EdgeInsets.only(top: 16),
@@ -358,10 +448,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                             ),
                           ),
                         ),
-
                       const SizedBox(height: 20),
-
-                      // Değiştir butonu
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
@@ -384,10 +471,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                               : const Text('Şifreyi Değiştir'),
                         ),
                       ),
-
                       const SizedBox(height: 12),
-
-                      // Şifremi unuttum
                       Center(
                         child: TextButton.icon(
                           onPressed: _sendPasswordResetEmail,
@@ -400,10 +484,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // Güvenlik seçenekleri
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -422,17 +503,11 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-
-                    // Biyometrik kimlik doğrulama
                     SwitchListTile(
                       title: const Text('Biyometrik Kimlik Doğrulama'),
                       subtitle: const Text('Parmak izi veya yüz tanıma ile giriş yap'),
                       value: _biometricAuthEnabled,
-                      onChanged: (bool value) {
-                        setState(() {
-                          _biometricAuthEnabled = value;
-                        });
-                      },
+                      onChanged: _toggleBiometricAuth,
                       secondary: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -442,10 +517,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         child: const Icon(Icons.fingerprint, color: Colors.blue),
                       ),
                     ),
-
                     const Divider(),
-
-                    // İki faktörlü kimlik doğrulama
                     SwitchListTile(
                       title: const Text('İki Faktörlü Kimlik Doğrulama'),
                       subtitle: const Text('SMS veya e-posta ile ek güvenlik katmanı'),
@@ -454,6 +526,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         setState(() {
                           _twoFactorAuthEnabled = value;
                         });
+                        // TODO: İki faktörlü kimlik doğrulama ayarını Firestore'a kaydet
                       },
                       secondary: Container(
                         padding: const EdgeInsets.all(8),
@@ -464,18 +537,17 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         child: const Icon(Icons.phone_android, color: Colors.purple),
                       ),
                     ),
-
                     const Divider(),
-
-                    // Otomatik çıkış
                     SwitchListTile(
                       title: const Text('Otomatik Çıkış'),
-                      subtitle: Text('Belirli bir süre sonra otomatik çıkış yap: $_autoLogoutTime dakika'),
+                      subtitle: Text(
+                          'Belirli bir süre sonra otomatik çıkış yap: $_autoLogoutTime dakika'),
                       value: _autoLogoutEnabled,
                       onChanged: (bool value) {
                         setState(() {
                           _autoLogoutEnabled = value;
                         });
+                        // TODO: Otomatik çıkış ayarını Firestore'a kaydet
                       },
                       secondary: Container(
                         padding: const EdgeInsets.all(8),
@@ -486,8 +558,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         child: const Icon(Icons.timer, color: Colors.teal),
                       ),
                     ),
-
-                    // Otomatik çıkış süresi ayarı
                     if (_autoLogoutEnabled)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -510,6 +580,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                                 setState(() {
                                   _autoLogoutTime = value.round();
                                 });
+                                // TODO: Çıkış süresi ayarını Firestore'a kaydet
                               },
                             ),
                           ],
@@ -519,10 +590,7 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // Hesap güvenliği
             Card(
               elevation: 2,
               shape: RoundedRectangleBorder(
@@ -541,10 +609,10 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-
                     ListTile(
                       title: const Text('Aktif Oturumlar'),
-                      subtitle: const Text('Tüm cihazlardaki oturumlarınızı görüntüleyin'),
+                      subtitle: const Text(
+                          'Tüm cihazlardaki oturumlarınızı görüntüleyin'),
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -555,7 +623,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       ),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
-                        // Aktif oturumlar ekranına yönlendir
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Bu özellik henüz geliştirme aşamasında'),
@@ -563,12 +630,11 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                         );
                       },
                     ),
-
                     const Divider(),
-
                     ListTile(
                       title: const Text('Hesap Etkinliği'),
-                      subtitle: const Text('Son giriş yapılan cihazlar ve lokasyonlar'),
+                      subtitle: const Text(
+                          'Son giriş yapılan cihazlar ve lokasyonlar'),
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -579,7 +645,6 @@ class _SecuritySettingsScreenState extends State<SecuritySettingsScreen> {
                       ),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () {
-                        // Hesap etkinliği ekranına yönlendir
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('Bu özellik henüz geliştirme aşamasında'),

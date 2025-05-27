@@ -1,36 +1,43 @@
 // 📄 Dosya: notifications_screen.dart
 // 📁 Konum: lib/screens/
-// 📌 Açıklama: Bildirimler ekranı - Firebase'den düşme olaylarını gösterir
+// 📌 Açıklama: Bildirimler ekranı - Firebase'den düşme olaylarını gerçek zamanlı gösterir, ekran görüntüleriyle
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../models/fall_event_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../models/fall_event_model.dart';
 
 class NotificationsScreen extends StatefulWidget {
-  const NotificationsScreen({Key? key}) : super(key: key);
+  final String? eventId;
+  const NotificationsScreen({Key? key, this.eventId}) : super(key: key);
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  bool _isLoading = true;
-  final List<FallEvent> _events = [];
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static const int _pageSize = 20;
+  DocumentSnapshot? _lastDocument;
+  bool _isLoadingMore = false;
+  final List<FallEvent> _events = [];
 
   @override
   void initState() {
     super.initState();
-    _loadEvents();
+    if (widget.eventId != null) {
+      _showEventDetailsById(widget.eventId!);
+    }
   }
 
-  Future<void> _loadEvents() async {
+  Future<void> _loadMoreEvents() async {
+    if (_lastDocument == null || _isLoadingMore) return;
+
     setState(() {
-      _isLoading = true;
+      _isLoadingMore = true;
     });
 
     try {
@@ -40,45 +47,118 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             .collection('fall_events')
             .where('user_id', isEqualTo: currentUser.uid)
             .orderBy('timestamp', descending: true)
-            .limit(50)
+            .startAfterDocument(_lastDocument!)
+            .limit(_pageSize)
             .get();
 
-        final events = snapshot.docs
-            .map((doc) => FallEvent.fromMap(doc.data()))
+        final newEvents = snapshot.docs
+            .map((doc) => FallEvent.fromMap(doc.data() as Map<String, dynamic>))
             .toList();
 
         setState(() {
-          _events.clear();
-          _events.addAll(events);
-          _isLoading = false;
+          _events.addAll(newEvents);
+          _lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+          _isLoadingMore = false;
         });
       }
     } catch (e) {
-      print('Düşme olayları yüklenirken hata: $e');
+      print('Daha fazla olay yüklenirken hata: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Hata: $e')),
+      );
       setState(() {
-        _isLoading = false;
+        _isLoadingMore = false;
       });
+    }
+  }
+
+  Future<void> _showEventDetailsById(String eventId) async {
+    try {
+      final doc = await _firestore.collection('fall_events').doc(eventId).get();
+      if (doc.exists) {
+        final event = FallEvent.fromMap(doc.data() as Map<String, dynamic>);
+        _showEventDetails(event);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Olay bulunamadı')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Olay detayları yüklenemedi: $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return const Scaffold(
+        body: Center(child: Text('Lütfen giriş yapın')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Bildirimler'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadEvents,
+            onPressed: () => setState(() {}),
             tooltip: 'Yenile',
           )
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _events.isEmpty
-          ? _buildEmptyState()
-          : _buildEventsList(),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore
+            .collection('fall_events')
+            .where('user_id', isEqualTo: currentUser.uid)
+            .orderBy('timestamp', descending: true)
+            .limit(_pageSize)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting && _events.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            String errorMessage = 'Bir hata oluştu: ${snapshot.error}';
+            if (snapshot.error.toString().contains('PERMISSION_DENIED')) {
+              errorMessage = 'Erişim izni reddedildi. Lütfen Firebase izinlerini kontrol edin.';
+            }
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(errorMessage),
+                  ElevatedButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('Yeniden Dene'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          if (snapshot.hasData) {
+            final newEvents = snapshot.data!.docs
+                .map((doc) => FallEvent.fromMap(doc.data() as Map<String, dynamic>))
+                .toList();
+
+            if (_events.isEmpty) {
+              _events.addAll(newEvents);
+              _lastDocument = snapshot.data!.docs.isNotEmpty ? snapshot.data!.docs.last : null;
+            }
+          }
+
+          if (_events.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return _buildEventsList();
+        },
+      ),
     );
   }
 
@@ -107,7 +187,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
-            onPressed: _loadEvents,
+            onPressed: () => setState(() {}),
             icon: const Icon(Icons.refresh),
             label: const Text('Yenile'),
             style: ElevatedButton.styleFrom(
@@ -121,14 +201,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   Widget _buildEventsList() {
     return RefreshIndicator(
-      onRefresh: _loadEvents,
+      onRefresh: () async {
+        setState(() {
+          _events.clear();
+          _lastDocument = null;
+        });
+      },
       child: ListView.builder(
         padding: const EdgeInsets.all(8),
-        itemCount: _events.length,
+        itemCount: _events.length + (_lastDocument != null ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index == _events.length && _lastDocument != null) {
+            return _buildLoadMoreButton();
+          }
           final event = _events[index];
           return _buildEventCard(event);
         },
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreButton() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: _isLoadingMore
+            ? const CircularProgressIndicator()
+            : ElevatedButton(
+          onPressed: _loadMoreEvents,
+          child: const Text('Daha Fazla Yükle'),
+        ),
       ),
     );
   }
@@ -138,7 +240,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final dateString = dateFormat.format(event.timestamp);
     final probabilityPercent = (event.probability * 100).toStringAsFixed(2);
 
-    // Olasılığa göre renk belirle
     Color priorityColor;
     if (event.probability < 0.5) {
       priorityColor = Colors.green;
@@ -206,6 +307,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 child: CachedNetworkImage(
                   imageUrl: event.screenshotUrl!,
                   fit: BoxFit.cover,
+                  memCacheHeight: 320,
                   placeholder: (context, url) => Container(
                     color: Colors.grey[300],
                     child: const Center(
@@ -247,7 +349,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Drag handle
                   Center(
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -259,7 +360,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                     ),
                   ),
-                  // Header
                   const Padding(
                     padding: EdgeInsets.fromLTRB(24, 8, 24, 16),
                     child: Text(
@@ -270,7 +370,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       ),
                     ),
                   ),
-                  // Screenshot
                   if (event.screenshotUrl != null)
                     Container(
                       width: double.infinity,
@@ -290,6 +389,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       child: CachedNetworkImage(
                         imageUrl: event.screenshotUrl!,
                         fit: BoxFit.cover,
+                        memCacheHeight: 500,
                         placeholder: (context, url) => Container(
                           color: Colors.grey[300],
                           child: const Center(
@@ -302,7 +402,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       ),
                     ),
-                  // Info cards
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
@@ -331,7 +430,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  // Actions
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
@@ -350,11 +448,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         ElevatedButton.icon(
                           onPressed: () {
-                            // İşaretlendi olarak işle veya sil
                             Navigator.pop(context);
+                            _markEventAsRead(event);
                           },
                           icon: const Icon(Icons.check_circle),
-                          label: const Text('İşaretle'),
+                          label: const Text('Okundu'),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16,
@@ -373,6 +471,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         );
       },
     );
+  }
+
+  Future<void> _markEventAsRead(FallEvent event) async {
+    try {
+      await _firestore.collection('fall_events').doc(event.id).update({
+        'is_read': true,
+      });
+      setState(() {
+        final index = _events.indexWhere((e) => e.id == event.id);
+        if (index != -1) {
+          _events[index] = event.copyWith(isRead: true);
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Olay okundu olarak işaretlendi')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Hata: $e')),
+      );
+    }
   }
 
   Widget _buildInfoCard(String title, String value, IconData icon,
@@ -413,7 +532,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: valueColor,
+              color: valueColor ?? Theme.of(context).textTheme.bodyLarge?.color,
             ),
           ),
         ],
