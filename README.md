@@ -81,7 +81,7 @@ Guard, yaşlılar ve hassas bireyler için geliştirilen, yapay zekâ destekli g
 
 
 📱 Uygulama Ekranları
-1.Açılış Ekranı
+## 1.Açılış Ekranı
 
 ![image](https://github.com/user-attachments/assets/c0b418b5-d56b-4d28-bfc4-745187f6ec97)
 
@@ -100,7 +100,7 @@ Guard, yaşlılar ve hassas bireyler için geliştirilen, yapay zekâ destekli g
 
 
 3. Ayarlar Sayfası
-4. 
+
 ![Ayarlar](https://github.com/user-attachments/assets/5fc14a17-57a5-49ed-91d5-fd5e46a32649)
 
 
