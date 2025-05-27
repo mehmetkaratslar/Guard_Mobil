@@ -74,12 +74,6 @@ Guard, yaşlılar ve hassas bireyler için geliştirilen, yapay zekâ destekli g
 | Bildirim         | Firebase Cloud Messaging, Telegram API, SMTP | Anlık uyarı sistemleri    |
 
 
-📦 Kurulum ve Kullanım
-
-> Kurulum ve kullanım adımları için ilgili dokümana veya proje dosyalarındaki açıklamalara başvurun.  
-> Sistem gereksinimleri, örnek ortam değişkenleri ve çalıştırma yönergeleri eklenecektir.
-
-
 
 📄 Lisans
 
