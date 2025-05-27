@@ -108,7 +108,7 @@ Guard, yaşlılar ve hassas bireyler için geliştirilen, yapay zekâ destekli g
 
 ![Ayarlar](https://github.com/user-attachments/assets/5fc14a17-57a5-49ed-91d5-fd5e46a32649)
 
-* Kullanıcı Profili: Profil fotoğrafı, isim ve e-posta bilgileri en üstte yer alır. Düzenleme butonuyla profil bilgileri değiştirilebilir.
+### Kullanıcı Profili: Profil fotoğrafı, isim ve e-posta bilgileri en üstte yer alır. Düzenleme butonuyla profil bilgileri değiştirilebilir.
 * Ayarlar Bölümü:
   * Profil: Kişisel bilgilerin düzenlenmesini sağlar.
   * 
@@ -117,17 +117,17 @@ Guard, yaşlılar ve hassas bireyler için geliştirilen, yapay zekâ destekli g
 
 
 
-  * Bildirimler: Bildirim türleri (e-posta, SMS, Telegram vb.) ve kanallarını ayarlama.
-  * 
+  ### Bildirimler: Bildirim türleri (e-posta, SMS, Telegram vb.) ve kanallarını ayarlama.
+    
     ![ProfilBildirim](https://github.com/user-attachments/assets/40ae2b21-cbc2-4497-a5f1-89584d9f689a)
 
 
 
-  * Güvenlik: Şifre ve güvenlik seçeneklerini yönetme.
+  ### Güvenlik: Şifre ve güvenlik seçeneklerini yönetme.
     ![Güvenlik](https://github.com/user-attachments/assets/49019031-4188-4ba8-b2f0-58a8cba3179e)
 
     
-* Uygulama Bölümü:
+### Uygulama Bölümü:
   * Hakkında:Uygulamanın sürümü ve geliştirici bilgileri.
 ![Hakkında](https://github.com/user-attachments/assets/9b430579-c470-450d-aa14-9528ca326975)
 
